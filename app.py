@@ -5,7 +5,7 @@ import jwt
 import requests
 import hashlib
 from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, flash, redirect, url_for, send_file
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
@@ -201,6 +201,11 @@ def ensure_relationships_exists():
     except Exception as e:
         print(f"Erro ao criar/semear Relacionamentos: {e}")
     return {"created": created, "seeded": seeded}
+
+@app.route('/static/p1-oauth.png')
+def p1_oauth_image():
+    image_path = os.path.join(app.root_path, 'image.png')
+    return send_file(image_path, mimetype='image/png')
 
 def get_sales_orders():
     if not engine:
