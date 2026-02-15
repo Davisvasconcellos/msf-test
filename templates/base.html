@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MSF Tech Test Demos{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="/static/css/style.css" rel="stylesheet">
+    {% block head_extras %}{% endblock %}
+</head>
+<body>
+
+<header id="top-header">
+    <div class="container-fluid d-flex align-items-center">
+        <img src="https://storage.empregare.com/hotsite/msfvagasbrasil/logo-4d37bea5-ea60-4954-818e-e6c7744507a6.png?CacheVersao=f9b3e029-3359-4c8a-8c81-5bce6f600c35" alt="MSF Logo" style="height: 40px;">
+    </div>
+</header>
+
+<div id="wrapper">
+    <nav id="sidebar-wrapper">
+        <div class="list-group list-group-flush pt-1" id="toc-list">
+        </div>
+        <div class="pt-2 pb-2 border-top" style="display: flex; flex-direction: column; padding: 15px;">
+            <h6 class="text-uppercase text-muted small fw-bold mb-2" style="margin-top: 15px;"><i class="bi bi-play-circle-fill me-2" style="color: #EE0000;"></i>Demos Interativas</h6>
+            <div class="d-grid gap-1">
+                <a href="/responses" class="btn btn-outline-secondary btn-sm text-start"><i class="bi bi-journal-text me-2"></i>Respostas</a>
+                <a href="/demo/1" class="btn btn-outline-danger btn-sm text-start"><i class="bi bi-key me-2"></i>OAuth 2.0</a>
+                <a href="/demo/5" class="btn btn-outline-danger btn-sm text-start"><i class="bi bi-database me-2"></i>SQL Update</a>
+                <a href="/demo/6" class="btn btn-outline-danger btn-sm text-start"><i class="bi bi-cloud-arrow-down me-2"></i>API Mock</a>
+                <a href="/demo/7" class="btn btn-outline-danger btn-sm text-start"><i class="bi bi-people me-2"></i>Normalização</a>
+                <a href="/demo/8" class="btn btn-outline-danger btn-sm text-start"><i class="bi bi-diagram-3-fill me-2"></i>Deep Key Map</a>
+                <a href="/demo/3" class="btn btn-outline-danger btn-sm text-start"><i class="bi bi-diagram-3 me-2"></i>CTE Recursiva</a>
+            </div>
+        </div>
+    </nav>
+
+    <div id="page-content-wrapper">
+        <div class="container-fluid py-1 demo-page">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-2">Processamento de Pedidos (API Consumo)</h2>
+        <p class="small text-muted mb-1"><strong>Pergunta relacionada:</strong> Pergunta 6 – consumo de API paginada, retry e idempotência.</p>
+        <div class="alert alert-secondary">
+            Esta demo simula a leitura paginada de uma API externa (<code>GET /api/orders?status=pending</code>) 
+            e o envio de confirmações (<code>POST /api/orders/{id}/confirm</code>) com lógica de retry e chave de idempotência.
+            <div class="small text-muted mt-1">Nesta versão, os pedidos vêm da tabela <code>Sales_Orders</code> (compartilhada com o demo SQL) e são atualizados diretamente nela.</div>
+        </div>
+
+        <div class="alert alert-warning d-flex flex-column flex-md-row align-items-md-center justify-content-between py-2 px-3 mb-3">
+            <div class="me-md-3">
+                <h6 class="mb-1">Reset de cenário (Sales_Orders)</h6>
+                <div class="small">
+                    Para preparar novos testes caso todos os pedidos pendentes já tenham sido processados, use o botão ao lado para resetar registros com status <code>PROCESSED</code> de volta para <code>PENDING</code>.
+                </div>
+            </div>
+            <div class="mt-2 mt-md-0 d-flex gap-2 flex-wrap">
+                <button id="btnApiReset" class="btn btn-outline-warning btn-sm">
+                    Resetar PROCESSED para PENDING
+                </button>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <button id="btnStart" class="btn btn-primary">
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    Consumir API de Pedidos Pendentes
+                </button>
+                <div id="progressStatus" class="mt-3 text-muted small d-none">
+                    Status: <span id="statusText">Aguardando...</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card h-100">
+                    <div class="card-header bg-dark text-white">Log de Execução em Tempo Real</div>
+                    <div class="card-body bg-light p-0">
+                        <div id="consoleLog" class="p-3 font-monospace small" style="height: 280px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                            <div class="text-muted">// Clique em Iniciar para ver o log...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card mb-3">
+                    <div class="card-header">Resposta da API (JSON)</div>
+                    <div class="card-body p-2">
+                        <pre id="apiJson" class="small mb-0" style="max-height: 220px; overflow: auto;">// Aguardando execução...</pre>
+                    </div>
+                </div>
+                <div class="card mb-3">
+                    <div class="card-header">Estatísticas</div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Pedidos Processados
+                            <span class="badge bg-success rounded-pill" id="statSuccess">0</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Falhas Definitivas
+                            <span class="badge bg-danger rounded-pill" id="statFail">0</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Total Tentativas API
+                            <span class="badge bg-primary rounded-pill" id="statTotal">0</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-header">IDs Processados/Falhados</div>
+                    <div class="card-body small">
+                        <div class="mb-2">
+                            <strong>Processados:</strong>
+                            <div id="processedList" class="mt-1 text-wrap"></div>
+                        </div>
+                        <div>
+                            <strong>Falhados:</strong>
+                            <div id="failedList" class="mt-1 text-wrap"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body small">
+                        <h6>Configuração Mock:</h6>
+                        <ul>
+                            <li>Retry Máximo: 3 tentativas</li>
+                            <li>Backoff: Exponencial (Simulado)</li>
+                            <li>Idempotency Key: MD5(OrderId)</li>
+                            <li>Falha Aleatória (5xx): 20%</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const btn = document.getElementById('btnStart');
+    const logContainer = document.getElementById('consoleLog');
+    const apiJson = document.getElementById('apiJson');
+    const processedList = document.getElementById('processedList');
+    const failedList = document.getElementById('failedList');
+    const btnApiReset = document.getElementById('btnApiReset');
+    
+    function appendLog(msg, type='info') {
+        const div = document.createElement('div');
+        div.className = `text-${type === 'error' ? 'danger' : 'success'}`;
+        div.style.color = type === 'info' ? '#d4d4d4' : (type === 'warn' ? '#ffc107' : '#f44336');
+        div.textContent = `> ${msg}`;
+        logContainer.appendChild(div);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.querySelector('.spinner-border').classList.remove('d-none');
+        document.getElementById('progressStatus').classList.remove('d-none');
+        document.getElementById('statusText').textContent = "Processando...";
+        logContainer.innerHTML = '';
+        apiJson.textContent = '// Aguardando execução...';
+        processedList.innerHTML = '';
+        failedList.innerHTML = '';
+        
+        appendLog("Iniciando job de processamento...");
+        
+        try {
+            const response = await fetch('/api/process-orders', { method: 'POST' });
+            const result = await response.json();
+            
+            result.logs.forEach(log => {
+                // Simula delay visual para logs
+                setTimeout(() => appendLog(log), 50); 
+            });
+            
+            document.getElementById('statSuccess').textContent = result.summary.processed;
+            document.getElementById('statFail').textContent = result.summary.failed;
+            document.getElementById('statTotal').textContent = result.summary.processed + result.summary.failed; // Simplificado
+            
+            apiJson.textContent = JSON.stringify(result, null, 2);
+            const ok = (result.details && result.details.processed_ids) ? result.details.processed_ids : [];
+            const ko = (result.details && result.details.failed_ids) ? result.details.failed_ids : [];
+            if (ok.length) {
+                processedList.innerHTML = ok.map(id => `<span class="badge bg-success me-1 mb-1">#${id}</span>`).join(' ');
+            } else {
+                processedList.innerHTML = '<span class="text-muted">Nenhum</span>';
+            }
+            if (ko.length) {
+                failedList.innerHTML = ko.map(id => `<span class="badge bg-danger me-1 mb-1">#${id}</span>`).join(' ');
+            } else {
+                failedList.innerHTML = '<span class="text-muted">Nenhum</span>';
+            }
+            
+            document.getElementById('statusText').textContent = "Concluído!";
+        } catch (error) {
+            appendLog(`Erro de comunicação com backend: ${error}`, 'error');
+            document.getElementById('statusText').textContent = "Erro!";
+        } finally {
+            btn.disabled = false;
+            btn.querySelector('.spinner-border').classList.add('d-none');
+        }
+    });
+
+    if (btnApiReset) {
+        btnApiReset.addEventListener('click', async () => {
+            btnApiReset.disabled = true;
+            appendLog("Resetando pedidos PROCESSED para PENDING...");
+            try {
+                const response = await fetch('/api/orders/reset-status', { method: 'POST' });
+                const data = await response.json();
+                appendLog(`Reset concluído: ${data.updated} registros afetados.`);
+            } catch (error) {
+                appendLog(`Erro ao resetar base: ${error}`, 'error');
+            } finally {
+                btnApiReset.disabled = false;
+            }
+        });
+    }
+</script>
+{% endblock %}

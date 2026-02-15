@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container text-center mt-2">
+    <h1 class="mb-2">Demos do Teste Técnico</h1>
+    <p class="lead mb-2">Selecione uma demo abaixo para ver a implementação ao vivo.</p>
+
+    <div class="row row-cols-1 row-cols-md-3 g-2 mt-2">
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Fluxo OAuth 2.0</h5>
+                    <p class="card-text">Visualização interativa de tokens JWT com expiração e refresh token.</p>
+                    <a href="/demo/1" class="btn btn-primary">Ver Demo 1/2</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Atualização SQL</h5>
+                    <p class="card-text">Interface para executar UPDATE em lote com SQLAlchemy e transações.</p>
+                    <a href="/demo/5" class="btn btn-success">Ver Demo 5</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Consumo de API</h5>
+                    <p class="card-text">Dashboard simulando consumo de API paginada com Retry e Idempotência.</p>
+                    <a href="/demo/6" class="btn btn-info text-white">Ver Demo 6</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Normalização de Dados</h5>
+                    <p class="card-text">Ferramenta para normalizar lista de usuários (JSON) conforme regras.</p>
+                    <a href="/demo/7" class="btn btn-warning">Ver Demo 7</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Deep Key Map</h5>
+                    <p class="card-text">Transformação recursiva de chaves JSON com controle de profundidade.</p>
+                    <a href="/demo/8" class="btn btn-secondary">Ver Demo 8</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">CTE Recursiva</h5>
+                    <p class="card-text">Execução de query SQL complexa para encontrar caminhos em grafos.</p>
+                    <a href="/demo/3" class="btn btn-dark">Ver Demo 3</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

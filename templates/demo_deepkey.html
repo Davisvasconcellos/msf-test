@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-2">Deep Key Map (Transformação Recursiva)</h2>
+        <p class="small text-muted mb-3"><strong>Pergunta relacionada:</strong> Pergunta 8 – função <code>deepKeyMap(obj, keyFn, maxDepth)</code> para transformar chaves aninhadas.</p>
+        <div class="alert alert-warning">
+            Esta função percorre recursivamente um objeto JSON e aplica uma transformação (Snake Case -> Camel Case)
+            em todas as chaves, respeitando um limite de profundidade (maxDepth).
+        </div>
+        
+        <form method="POST" action="/demo/8">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="json_input" class="form-label fw-bold">JSON de Entrada (Objetos Aninhados):</label>
+                    <textarea class="form-control font-monospace small" id="json_input" name="json_input" rows="12" required placeholder="Cole seu JSON aqui ou selecione um dos exemplos.">{{ input_text or '' }}</textarea>
+                    <p class="small text-muted mt-2 mb-1">Cole seu JSON ou selecione um dos exemplos abaixo para testar a transformação.</p>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnExampleSimple">
+                            simples
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnExampleNested">
+                            aninhado
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnExampleArray">
+                            arrays
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="max_depth" class="form-label fw-bold">Profundidade Máxima (maxDepth):</label>
+                        <input type="number" class="form-control" id="max_depth" name="max_depth" value="{{ max_depth }}" min="0" max="20">
+                        <div class="form-text">Níveis além deste valor não terão suas chaves transformadas. Ex.: 0 = sem transformação; 1 = apenas raiz; 2 = raiz + filhos.</div>
+                    </div>
+                    
+                    <label class="form-label fw-bold">Resultado (CamelCase):</label>
+                    <div class="bg-light p-3 border rounded font-monospace small" style="height: 260px; overflow-y: auto;">
+                        {% if output %}
+                            <pre>{{ output | tojson(indent=4) }}</pre>
+                        {% else %}
+                            <span class="text-muted">// O JSON transformado aparecerá aqui...</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <button type="submit" class="btn btn-secondary btn-lg px-5">Transformar Chaves</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    const inputEl = document.getElementById('json_input');
+    const exampleSimple = {
+        "user_name": "Davis",
+        "age_years": 30,
+        "is_active": true
+    };
+    const exampleNested = {
+        "user_info": {
+            "full_name": "Davis Pereira",
+            "contact_details": {
+                "phone_number": "123-456",
+                "address_home": "Rua X",
+                "geo_location": {
+                    "lat_coord": -23.561234,
+                    "long_coord": -46.655432,
+                    "region_info": {
+                        "country_code": "br",
+                        "state_code": "sp",
+                        "cities": [
+                            {"city_name": "São Paulo", "zone_code": "z1"},
+                            {"city_name": "Campinas", "zone_code": "z2"}
+                        ]
+                    }
+                }
+            },
+            "preferences": {
+                "ui_theme": "dark_mode",
+                "language_code": "pt_br",
+                "notifications": {
+                    "email_opt_in": true,
+                    "sms_opt_in": false,
+                    "channels": ["weekly_digest", "product_updates"]
+                }
+            }
+        },
+        "order_history": [
+            {
+                "order_id": 123,
+                "total_value": 1500.50,
+                "payment_info": {
+                    "card_brand": "visa",
+                    "installments_qty": 3
+                },
+                "shipment": {
+                    "address": {
+                        "street_name": "Av. Brasil",
+                        "street_number": "1000",
+                        "postal_code": "01000-000"
+                    },
+                    "events": [
+                        {"event_type": "shipped", "event_date": "2025-01-10"},
+                        {"event_type": "delivered", "event_date": "2025-01-12"}
+                    ]
+                }
+            },
+            {
+                "order_id": 456,
+                "items": [
+                    {"item_code": "ABC", "ship_date": "2025-01-10"},
+                    {"item_code": "XYZ", "ship_date": "2025-01-18"}
+                ],
+                "audit_trail": [
+                    {"change_by": "system_user", "change_type": "status_update", "meta": {"old_status": "pending", "new_status": "processed"}}
+                ]
+            }
+        ]
+    };
+    const exampleArray = {
+        "users_list": [
+            {
+                "user_id": 1,
+                "full_name": "Ana Silva",
+                "preferences": {
+                    "theme_mode": "dark",
+                    "notify_email": true
+                }
+            },
+            {
+                "user_id": 2,
+                "full_name": "Bruno Costa",
+                "preferences": {
+                    "theme_mode": "light",
+                    "notify_email": false
+                }
+            }
+        ],
+        "meta_info": {
+            "created_at": "2025-01-01",
+            "created_by": "admin_user",
+            "extra_flags": {
+                "is_synchronized": true,
+                "source_system": "legacy_crm"
+            }
+        }
+    };
+    function fillExampleDeep(data) {
+        if (!inputEl) return;
+        inputEl.value = JSON.stringify(data, null, 4);
+        inputEl.focus();
+    }
+    const btnSimple = document.getElementById('btnExampleSimple');
+    const btnNested = document.getElementById('btnExampleNested');
+    const btnArray = document.getElementById('btnExampleArray');
+    if (btnSimple) btnSimple.addEventListener('click', function () { fillExampleDeep(exampleSimple); });
+    if (btnNested) btnNested.addEventListener('click', function () { fillExampleDeep(exampleNested); });
+    if (btnArray) btnArray.addEventListener('click', function () { fillExampleDeep(exampleArray); });
+</script>
+{% endblock %}

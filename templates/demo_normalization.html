@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-2">Normalização de Dados de Usuários (JSON)</h2>
+        <p class="small text-muted mb-3"><strong>Pergunta relacionada:</strong> Pergunta 7 – função <code>normalizeUsers(input)</code> para normalizar uma lista de usuários.</p>
+        <div class="alert alert-info">
+            Este utilitário aplica regras de normalização:
+            <ul class="mb-0 small">
+                <li>ID: Numérico (descarta inválidos)</li>
+                <li>Nome: Title Case, sem espaços extras</li>
+                <li>Email: Minúsculo, trim</li>
+                <li>Ativo: Converte "true"/"1" para Boolean</li>
+                <li>Tags: Lista única, ordenada, minúscula</li>
+            </ul>
+        </div>
+        <p class="small text-muted mb-3">Cole seu conteúdo ou selecione um dos exemplos abaixo para testar as regras.</p>
+        
+        <form method="POST" action="/demo/7">
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="json_input" class="form-label fw-bold">Entrada (JSON Lista de Objetos):</label>
+                    <textarea class="form-control font-monospace small" id="json_input" name="json_input" rows="15" required placeholder="Cole seu array aqui ou selecione um dos exemplos.">{{ input_text or '' }}</textarea>
+                    <div class="mt-2 d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnExample1">
+                            básico
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnExample2">
+                            tags e formatos
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnExample3">
+                            inválidos
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Saída Normalizada:</label>
+                    <div class="bg-light p-3 border rounded font-monospace small" style="height: 380px; overflow-y: auto;">
+                        {% if output %}
+                            <pre>{{ output | tojson(indent=4) }}</pre>
+                        {% else %}
+                            <span class="text-muted">// O resultado aparecerá aqui...</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3 text-center">
+                <button type="submit" class="btn btn-primary btn-lg px-5">Normalizar Dados</button>
+                <button type="button" class="btn btn-secondary btn-lg px-5 ms-2" onclick="document.getElementById('json_input').value=''">Limpar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    const inputEl = document.getElementById('json_input');
+    const example1 = [
+        {"id": "123", "name": "  mARIA  da  silva ", "email": " Maria@Exemplo.COM ", "active": "true", "tags": "python, Python, data"},
+        {"id": 456, "name": "joão  silva", "email": "JOAO@GMAIL.com", "active": 1, "tags": ["dev", "backend", "dev"]},
+        {"id": "abc", "name": "inválido", "email": "teste", "active": "sim", "tags": "a, b,  c"}
+    ];
+    const example2 = [
+        {"id": "10", "name": " ana  paula ", "email": " ANA@TESTE.com ", "active": "1", "tags": "Dev, DEV, frontend "},
+        {"id": "11", "name": "Carlos Souza", "email": "  carlos@example.com", "active": "false", "tags": ["Python", "python", "DATA"]},
+        {"id": 12, "name": "  luiz  almeida", "email": "luiz@empresa.com ", "active": 0, "tags": []}
+    ];
+    const example3 = [
+        {"id": "xyz", "name": "sem id válido", "email": "user@example.com", "active": "true", "tags": "test"},
+        {"id": null, "name": "nulo", "email": "null@example.com", "active": null},
+        {"id": "789", "name": "  maria   clara ", "email": "   MARIA.CLARA@MAIL.COM", "active": "yes", "tags": ["A", "b", "A"]}
+    ];
+    function fillExample(data) {
+        if (!inputEl) return;
+        inputEl.value = JSON.stringify(data, null, 4);
+        inputEl.focus();
+    }
+    const btn1 = document.getElementById('btnExample1');
+    const btn2 = document.getElementById('btnExample2');
+    const btn3 = document.getElementById('btnExample3');
+    if (btn1) btn1.addEventListener('click', function () { fillExample(example1); });
+    if (btn2) btn2.addEventListener('click', function () { fillExample(example2); });
+    if (btn3) btn3.addEventListener('click', function () { fillExample(example3); });
+</script>
+{% endblock %}

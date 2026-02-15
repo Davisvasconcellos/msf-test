@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2 class="mb-2">Fluxo de Autorização OAuth 2.0 (Simulação)</h2>
+        <p class="small text-muted mb-1"><strong>Perguntas relacionadas:</strong> Perguntas 1 e 2 – fluxo de autenticação e tokens JWT.</p>
+        <div class="alert alert-info">
+            Este demo simula o ciclo de vida de um token JWT. Clique em "Login" para obter um par de tokens.
+        </div>
+
+        <div class="card mb-2">
+            <div class="card-body d-flex align-items-center justify-content-center gap-2">
+                <button id="btnLogin" class="btn btn-primary">Login (Gerar Tokens)</button>
+                <button id="btnRefresh" class="btn btn-warning" disabled>Refresh Token</button>
+                <div class="form-check ms-2">
+                    <input class="form-check-input" type="checkbox" id="autoRefresh">
+                    <label class="form-check-label small" for="autoRefresh">Auto-refresh</label>
+                </div>
+            </div>
+        </div>
+
+        <div id="tokenDisplay" class="d-none">
+            <div class="card mb-2 border-success">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <span>Access Token (JWT)</span>
+                    <span class="badge bg-light text-dark" id="timerBadge">Expira em: <span id="timer">--</span>s</span>
+                </div>
+                <div class="card-body">
+                    <pre id="accessToken" class="small text-break"></pre>
+                    <h6 class="mt-2">Payload Decodificado:</h6>
+                    <table class="table table-sm table-bordered">
+                        <thead><tr><th>Claim</th><th>Valor</th></tr></thead>
+                        <tbody id="payloadTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card mb-2 border-secondary">
+                <div class="card-header bg-secondary text-white">Refresh Token (Opaco ou JWT assinado diferente)</div>
+                <div class="card-body">
+                    <pre id="refreshToken" class="small text-break"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Log de Ações</div>
+            <div class="card-body bg-light" style="max-height: 160px; overflow-y: auto;">
+                <ul id="actionLog" class="list-unstyled mb-0 font-monospace small"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let intervalId;
+    let currentRefreshToken = null;
+
+    function log(msg) {
+        const logEl = document.getElementById('actionLog');
+        const item = document.createElement('li');
+        item.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logEl.prepend(item);
+    }
+
+    function parseJwt(token) {
+        try {
+            return JSON.parse(atob(token.split('.')[1]));
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function startTimer(expiresIn) {
+        if (intervalId) clearInterval(intervalId);
+        let timeLeft = expiresIn;
+        const timerEl = document.getElementById('timer');
+        const auto = document.getElementById('autoRefresh');
+        timerEl.textContent = timeLeft;
+        intervalId = setInterval(() => {
+            timeLeft--;
+            timerEl.textContent = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(intervalId);
+                timerEl.textContent = "EXPIRADO";
+                log("Access Token expirou!");
+                const badge = document.getElementById('timerBadge');
+                badge.classList.replace('bg-light', 'bg-danger');
+                badge.classList.replace('text-dark', 'text-white');
+                if (auto && auto.checked) {
+                    doRefresh();
+                }
+            }
+        }, 1000);
+    }
+
+    document.getElementById('btnLogin').addEventListener('click', async () => {
+        log("Iniciando login...");
+        try {
+            const res = await fetch('/api/oauth/token', { method: 'POST' });
+            const data = await res.json();
+            
+            updateUI(data);
+            log("Login realizado com sucesso. Tokens recebidos.");
+            document.getElementById('btnRefresh').disabled = false;
+        } catch (e) {
+            log("Erro no login: " + e);
+        }
+    });
+
+    async function doRefresh() {
+        if (!currentRefreshToken) return;
+        log("Tentando renovar token...");
+        try {
+            const res = await fetch('/api/oauth/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refresh_token: currentRefreshToken })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (!data.refresh_token) data.refresh_token = currentRefreshToken;
+                updateUI(data);
+                log("Token renovado com sucesso!");
+            } else {
+                const err = await res.json();
+                log("Falha na renovação: " + err.error);
+                alert("Sessão expirada. Faça login novamente.");
+                document.getElementById('btnRefresh').disabled = true;
+            }
+        } catch (e) {
+            log("Erro na renovação: " + e);
+        }
+    }
+
+    document.getElementById('btnRefresh').addEventListener('click', async () => {
+        await doRefresh();
+    });
+
+    function updateUI(data) {
+        document.getElementById('tokenDisplay').classList.remove('d-none');
+        document.getElementById('accessToken').textContent = data.access_token;
+        document.getElementById('refreshToken').textContent = data.refresh_token;
+        currentRefreshToken = data.refresh_token;
+
+        // Reset badge style
+        const badge = document.getElementById('timerBadge');
+        badge.className = "badge bg-light text-dark";
+
+        // Parse Payload
+        const payload = parseJwt(data.access_token);
+        const tbody = document.getElementById('payloadTable');
+        tbody.innerHTML = '';
+        if (payload) {
+            for (const [key, value] of Object.entries(payload)) {
+                const row = `<tr><td>${key}</td><td>${value}</td></tr>`;
+                tbody.insertAdjacentHTML('beforeend', row);
+            }
+        }
+
+        // Timer (simulado mais rápido para demo, ou usa o real)
+        // O backend manda expires_in=900 (15 min), vamos simular 15s para a demo ser rápida?
+        // Não, vamos usar o valor real mas permitir refresh a qualquer momento.
+        // Se quiser demo rápida, mude no backend. Vou deixar 900s visualmente.
+        startTimer(data.expires_in); 
+    }
+</script>
+{% endblock %}

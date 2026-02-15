@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block head_extras %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-2">Atualização em Lote de Pedidos (SQLAlchemy)</h2>
+
+<p class="small text-muted mb-1"><strong>Pergunta relacionada:</strong> Pergunta 5 – atualização em lote com SQL.</p>
+<p class="small text-muted mb-2">Para este demo utilizei MariaDB em vez de SQL Server, mas a ideia de transação, query parametrizada e tratamento de erro é a mesma para qualquer banco relacional.</p>
+
+{% if db_connected %}
+<div class="alert alert-success py-2 mb-2">
+    <strong>Status do Banco:</strong> Conectado — {{ db_version }}
+    <span class="ms-2 badge bg-success align-middle">OK</span>
+    <div class="small text-muted">Dialeto configurado para MariaDB (pymysql).</div>
+    </div>
+<div class="alert alert-warning d-flex align-items-center py-2 px-3 mb-2">
+    <i class="bi bi-info-circle-fill me-2"></i>
+    <div class="small">
+        Para preparar novos testes, use o botão abaixo para resetar apenas registros com status <code>PROCESSED</code> de volta para <code>PENDING</code>, sem alterar outros status (como <code>CANCELLED</code> ou <code>SHIPPED</code>).
+    </div>
+</div>
+
+<div class="d-flex gap-2 flex-wrap mb-3">
+    <form method="POST" action="/demo/5" class="m-0 p-0 d-inline-block">
+        <input type="hidden" name="action" value="reset">
+        <button type="submit" class="btn btn-outline-warning btn-sm" {% if not db_connected %}disabled{% endif %}>
+            Resetar PROCESSED para PENDING
+        </button>
+    </form>
+</div>
+{% else %}
+<div class="alert alert-danger py-2 mb-2">
+    <strong>Status do Banco:</strong> Não conectado
+    {% if conn_error %}
+    <div class="small mt-1">Detalhes: {{ conn_error }}</div>
+    {% else %}
+    <div class="small mt-1">Nenhum DATABASE_URL configurado.</div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if seeded and seeded.seeded %}
+<div class="alert alert-info py-2 mb-2">
+    <strong>Dados de Exemplo:</strong> A tabela <code>Sales_Orders</code> foi criada e populada com pedidos fictícios.
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Cenário: Processar Pedidos Pendentes</h5>
+        <p class="card-text">
+            Esta ferramenta busca todos os pedidos com status <code>PENDING</code> a partir de uma data de corte e os atualiza para <code>PROCESSED</code>.
+            A operação é realizada dentro de uma transação atômica.
+        </p>
+        <form method="POST" action="/demo/5" class="mt-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label for="cutoff_date" class="form-label mb-1">Data de Corte (Cutoff Date)</label>
+                    <input type="date" class="form-control" id="cutoff_date" name="cutoff_date" required value="{{ request.form.get('cutoff_date', '') }}">
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <button type="submit" class="btn btn-success w-100" {% if not db_connected %}disabled{% endif %}>
+                        Atualizar status
+                    </button>
+                </div>
+            </div>
+            <div class="form-text mt-1">Pedidos anteriores a esta data serão ignorados.</div>
+        </form>
+    </div>
+</div>
+
+{% if result %}
+<div class="alert alert-info mt-3">
+    <h4>Resultado:</h4>
+    <p>{{ result }}</p>
+</div>
+{% endif %}
+
+{% if orders and orders|length > 0 %}
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Pedidos (Sales_Orders)</span>
+        <span class="badge bg-secondary">Total: {{ orders|length }}</span>
+    </div>
+    <div class="card-body p-2">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover align-middle mb-0" id="ordersTable" style="width:100%">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Data</th>
+                        <th>Status</th>
+                        <th>Cliente</th>
+                        <th class="text-end">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in orders %}
+                    <tr>
+                        <td>{{ o.OrderID }}</td>
+                        <td>{{ o.OrderDate }}</td>
+                        <td>
+                            {% if o.Status == 'PENDING' %}
+                                <span class="badge bg-warning text-dark">PENDING</span>
+                            {% elif o.Status == 'PROCESSED' %}
+                                <span class="badge bg-success">PROCESSED</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ o.Status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ o.CustomerName }}</td>
+                        <td class="text-end">R$ {{ '%.2f'|format(o.Amount) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <h6>Query SQL Executada (Simulação):</h6>
+    <pre><code>UPDATE Sales_Orders 
+SET Status = 'PROCESSED' 
+WHERE Status = 'PENDING' 
+  AND OrderDate >= :cutoff_date;</code></pre>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var tableEl = document.getElementById('ordersTable');
+        if (tableEl) {
+            var dt = new DataTable(tableEl, {
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Todos']],
+                order: [[1, 'desc'], [0, 'desc']],
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/pt-BR.json' }
+            });
+        }
+    });
+</script>
+{% endblock %}
